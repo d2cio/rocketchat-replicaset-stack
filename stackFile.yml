@@ -1,0 +1,64 @@
+version: '1.0'
+services:
+  - name: mongo
+    type: mongodb
+    version: 4.0
+    configuration: ReplicaSet
+    password: null
+    ports:
+      - 27017
+    remoteAccess: false
+    deployTo:
+      - rocket
+      - replica-one
+      - replica-two
+
+  - name: rocketchat
+    type: docker
+    image: rocket.chat
+    version: 1
+    ports:
+      - 3000
+    remoteAccess: false
+    env:
+      ROOT_URL: "http://{{=service('rocketchat').getNginxDomain()}}"
+      MONGO_URL: "mongodb://root:{{=service('mongo').get('password')}}@{{=service('mongo').getMasterAlias()}},{{=service('mongo').getSlaveAlias()}}:27017/rocketchat?replicaSet={{=service('mongo').get('name')}}&readPreference=secondaryPreferred&authSource=admin"
+      MONGO_OPLOG_URL: "mongodb://root:{{=service('mongo').get('password')}}@{{=service('mongo').getMasterAlias()}},{{=service('mongo').getSlaveAlias()}}:27017/local?replicaSet={{=service('mongo').get('name')}}&readPreference=secondaryPreferred&authSource=admin"
+      Accounts_UseDNSDomainCheck: True
+      ADMIN_NAME: admin
+      ADMIN_PASS: null
+    comments:
+      env:
+        ADMIN_PASS: Password for an admin account
+    volumes:
+      - directory: /app/uploads
+    deployTo:
+      - rocket
+
+  - name: web
+    type: nginx
+    version: 1.15
+    ports:
+      - 80
+      - 443
+    remoteAccess: true
+    serviceFiles:
+      - name: rocketchat
+    deployTo:
+      - rocket
+
+hosts:
+  - name: rocket
+    requirements:
+      cores: 1
+      memory: 2
+
+  - name: replica-one
+    requirements:
+      cores: 1
+      memory: 1
+
+  - name: replica-two
+    requirements:
+      cores: 1
+      memory: 1
