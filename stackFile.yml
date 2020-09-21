@@ -2,7 +2,7 @@ version: '1.0'
 services:
   - name: mongo
     type: mongodb
-    version: 4.0
+    version: 4.4
     configuration: ReplicaSet
     password: null
     ports:
@@ -16,14 +16,14 @@ services:
   - name: rocketchat
     type: docker
     image: rocket.chat
-    version: 1
+    version: latest
     ports:
       - 3000
     remoteAccess: false
     env:
       ROOT_URL: "http://{{=service('rocketchat').getNginxDomain()}}"
-      MONGO_URL: "mongodb://root:{{=service('mongo').get('password')}}@{{=service('mongo').getMasterAlias()}},{{=service('mongo').getSlaveAlias()}}:27017/rocketchat?replicaSet={{=service('mongo').get('name')}}&readPreference=secondaryPreferred&authSource=admin"
-      MONGO_OPLOG_URL: "mongodb://root:{{=service('mongo').get('password')}}@{{=service('mongo').getMasterAlias()}},{{=service('mongo').getSlaveAlias()}}:27017/local?replicaSet={{=service('mongo').get('name')}}&readPreference=secondaryPreferred&authSource=admin"
+      MONGO_URL: "mongodb://root:{{=service('mongo').get('password')}}@{{=service('mongo').getContainerName(1)}},{{=service('mongo').getContainerName(2)}},{{=service('mongo').getContainerName(3)}}:27017/rocketchat?replicaSet={{=service('mongo').get('name')}}&readPreference=secondaryPreferred&authSource=admin"
+      MONGO_OPLOG_URL: "mongodb://root:{{=service('mongo').get('password')}}@{{=service('mongo').getContainerName(1)}},{{=service('mongo').getContainerName(2)}},{{=service('mongo').getContainerName(3)}}:27017/local?replicaSet={{=service('mongo').get('name')}}&readPreference=secondaryPreferred&authSource=admin"
       Accounts_UseDNSDomainCheck: True
       ADMIN_NAME: admin
       ADMIN_PASS: null
@@ -32,12 +32,14 @@ services:
         ADMIN_PASS: Password for an admin account
     volumes:
       - directory: /app/uploads
+      - directory: /tmp
+    volumesUID: 999
     deployTo:
       - rocket
 
   - name: web
     type: nginx
-    version: 1.15
+    version: 1.19
     ports:
       - 80
       - 443
